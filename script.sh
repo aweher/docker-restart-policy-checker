@@ -8,6 +8,20 @@
 OUTPUT_FORMAT="table"
 SHOW_PROGRESS=true
 
+# Directorios a ignorar durante la búsqueda
+IGNORE_DIRS=(
+  "/var/lib/docker/overlay2"
+  "/proc"
+  "/sys"
+  "/dev"
+  "/run"
+  "/var/lib/lxcfs"
+  "/var/lib/docker/volumes"
+  "/var/lib/docker/containers"
+  "/tmp"
+  "/var/tmp"
+)
+
 # Procesar argumentos
 for arg in "$@"; do
   case $arg in
@@ -165,8 +179,15 @@ done < <(docker ps -a --format "{{.Names}} {{.RestartPolicy}}" 2>/dev/null)
 
 show_progress "Buscando docker-compose" 1 5
 
-# Encontrar todos los docker-compose en el sistema
-COMPOSE_FILES=$(find / -type f -name "docker-compose*.yml" -o -name "docker-compose*.yaml" 2>/dev/null)
+# Construir la expresión para excluir directorios
+FIND_EXCLUDE=""
+for dir in "${IGNORE_DIRS[@]}"; do
+    FIND_EXCLUDE="$FIND_EXCLUDE -not -path \"$dir/*\""
+done
+
+# Encontrar todos los docker-compose en el sistema, excluyendo los directorios especificados
+FIND_CMD="find / -type f \( -name \"docker-compose*.yml\" -o -name \"docker-compose*.yaml\" \) $FIND_EXCLUDE 2>/dev/null"
+COMPOSE_FILES=$(eval "$FIND_CMD")
 
 show_progress "Analizando servicios" 2 5
 
